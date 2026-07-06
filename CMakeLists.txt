@@ -32,7 +32,7 @@ include(FetchContent)
 set(FETCHCONTENT_QUIET OFF)
 
 # ONNX Runtime (pre-built) - https://github.com/microsoft/onnxruntime/releases
-set(ONNXRUNTIME_VERSION "1.23.2")
+set(ONNXRUNTIME_VERSION "1.23.2" CACHE STRING "ONNX Runtime version")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")

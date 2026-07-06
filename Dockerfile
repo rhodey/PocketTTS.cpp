@@ -1,6 +1,11 @@
 ARG PYTHON_IMAGE=python:3.12-slim-bookworm
+ARG POCKET_TTS_REF=058886528d0b6f2f2d4022de2e244a5260729e6e
+ARG EXPORTER_ONNXRUNTIME_VERSION=1.23.2
+ARG ONNXRUNTIME_VERSION=1.23.2
 
 FROM ${PYTHON_IMAGE} AS exporter
+ARG POCKET_TTS_REF
+ARG EXPORTER_ONNXRUNTIME_VERSION
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -17,15 +22,17 @@ COPY export_onnx.py ./
 RUN python -m pip install --upgrade pip && \
     python -m pip install --index-url https://download.pytorch.org/whl/cpu torch && \
     python -m pip install \
-        "pocket-tts @ git+https://github.com/kyutai-labs/pocket-tts.git" \
+        "pocket-tts @ git+https://github.com/kyutai-labs/pocket-tts.git@${POCKET_TTS_REF}" \
         onnx \
-        onnxruntime
+        "onnxruntime==${EXPORTER_ONNXRUNTIME_VERSION}" && \
+    python -m pip freeze | tee /opt/pocket-tts-exporter-requirements.txt
 
 RUN mkdir -p /opt/pocket-tts/models && \
     python export_onnx.py --output-dir /opt/pocket-tts/models --language english_2026-01 --no-validate
 
 
 FROM ${PYTHON_IMAGE} AS builder
+ARG ONNXRUNTIME_VERSION
 
 ENV PIP_NO_CACHE_DIR=1
 
@@ -42,7 +49,7 @@ RUN python -m pip install --upgrade pip cmake
 
 COPY CMakeLists.txt pocket_tts.cpp ./
 
-RUN cmake -S . -B /tmp/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIB=OFF && \
+RUN cmake -S . -B /tmp/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIB=OFF -DONNXRUNTIME_VERSION="${ONNXRUNTIME_VERSION}" && \
     cmake --build /tmp/build -j"$(nproc)"
 
 RUN mkdir -p /opt/pocket-tts/runtime && \
@@ -64,6 +71,7 @@ ENV LD_LIBRARY_PATH=/app
 
 COPY --from=builder /opt/pocket-tts/runtime/ /app/
 COPY --from=exporter /opt/pocket-tts/models/ /app/models/
+COPY --from=exporter /opt/pocket-tts-exporter-requirements.txt /app/exporter-requirements.txt
 
 RUN mkdir -p /app/voices/.cache
 
