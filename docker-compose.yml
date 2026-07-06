@@ -4,8 +4,12 @@ services:
     container_name: pocket-tts-cpp
     build:
       context: .
+      args:
+        POCKET_TTS_REF: ${POCKET_TTS_REF:-058886528d0b6f2f2d4022de2e244a5260729e6e}
+        EXPORTER_ONNXRUNTIME_VERSION: ${POCKET_TTS_EXPORTER_ONNXRUNTIME_VERSION:-1.23.2}
+        ONNXRUNTIME_VERSION: ${POCKET_TTS_ONNXRUNTIME_VERSION:-1.23.2}
     volumes:
       - ./voices:/app/voices
     ports:
       - "8080:8080"
-    command: ["--server", "--port", "8080"]
+    command: ["--server", "--port", "8080", "--precision", "${POCKET_TTS_PRECISION:-fp32}"]
